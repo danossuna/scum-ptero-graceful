@@ -2,28 +2,24 @@
 
 echo "=== SCUM Server com graceful shutdown (Pterodactyl) ==="
 
-# Instala SteamCMD se não existir
-if ! command -v steamcmd &> /dev/null; then
-    echo "SteamCMD não encontrado. Instalando..."
-    mkdir -p /home/container/steamcmd
-    cd /home/container/steamcmd
-    wget -q https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz
-    tar -xzf steamcmd_linux.tar.gz
-    rm steamcmd_linux.tar.gz
-    chmod +x steamcmd.sh
-    ln -s /home/container/steamcmd/steamcmd.sh /usr/local/bin/steamcmd
-    echo "SteamCMD instalado com sucesso."
+# Caminho correto do SteamCMD instalado pelo egg do Pterodactyl
+STEAMCMD="/home/container/steamcmd/steamcmd.sh"
+
+if [ ! -f "$STEAMCMD" ]; then
+    echo "ERRO: SteamCMD não encontrado em $STEAMCMD"
+    echo "Verifique se o Installation Script do egg SCUM está rodando."
+    exit 1
 fi
 
 echo "Atualizando SCUM Dedicated Server..."
 cd /home/container
 
-# Atualiza o servidor (AppID do SCUM é 3792580)
-steamcmd +force_install_dir /home/container +login anonymous +app_update 3792580 validate +quit
+# Atualiza usando o steamcmd.sh completo (não o comando "steamcmd")
+"$STEAMCMD" +force_install_dir /home/container +login anonymous +app_update 3792580 validate +quit
 
 echo "Iniciando SCUMServer.exe..."
 
-# Lança o servidor (use as variáveis do seu egg)
+# Inicia o servidor (ajuste as variáveis conforme seu egg)
 wine ./SCUM/Binaries/Win64/SCUMServer.exe \
   -log \
   -port=${SERVER_PORT:-7777} \
@@ -33,13 +29,13 @@ wine ./SCUM/Binaries/Win64/SCUMServer.exe \
 
 SERVER_PID=$!
 
-# Graceful shutdown
+# Graceful Shutdown
 shutdown() {
   echo "Recebido sinal de shutdown do Pterodactyl - enviando SIGINT (Ctrl+C) pro SCUMServer.exe..."
   kill -SIGINT $SERVER_PID 2>/dev/null || true
   
-  echo "Aguardando salvamento do banco de dados (SQLite) - isso pode demorar..."
-  sleep 60   # 60 segundos deve ser suficiente pro SCUM salvar tudo
+  echo "Aguardando salvamento do banco de dados (SQLite) - pode demorar até 60 segundos..."
+  sleep 60
   
   echo "Servidor encerrado com sucesso."
   exit 0
@@ -47,5 +43,4 @@ shutdown() {
 
 trap shutdown SIGTERM SIGINT SIGQUIT
 
-# Mantém o container vivo
 wait $SERVER_PID
