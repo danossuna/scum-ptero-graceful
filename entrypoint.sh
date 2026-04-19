@@ -1,8 +1,7 @@
 #!/bin/bash
 
-echo "=== SCUM Server com graceful shutdown (Pterodactyl) ==="
+echo "=== SCUM Server - Modo Diagnóstico (Pterodactyl) ==="
 
-# Caminho do SteamCMD instalado pelo egg
 STEAMCMD="/home/container/steamcmd/steamcmd.sh"
 
 if [ ! -f "$STEAMCMD" ]; then
@@ -10,36 +9,23 @@ if [ ! -f "$STEAMCMD" ]; then
     exit 1
 fi
 
-echo "Atualizando SCUM Dedicated Server..."
+echo "Atualizando servidor..."
 cd /home/container
-
-# Atualiza o servidor
 "$STEAMCMD" +force_install_dir /home/container +login anonymous +app_update 3792580 validate +quit
 
-echo "Iniciando SCUMServer.exe..."
+echo ""
+echo "=== DIAGNÓSTICO DE PASTAS ==="
+echo "Conteúdo principal da pasta /home/container:"
+ls -la /home/container
 
-# Caminho CORRETO do executável (sem o ./ no início)
-wine SCUM/Binaries/Win64/SCUMServer.exe \
-  -log \
-  -Port=${SERVER_PORT:-7777} \
-  -QueryPort=${QUERY_PORT:-7778} \
-  -MaxPlayers=${MAX_PLAYERS:-32} \
-  ${ADDITIONALFLAGS} &
+echo ""
+echo "Procurando pastas que contenham 'SCUM' ou 'SCUMServer':"
+find /home/container -maxdepth 3 -type d \( -name "*SCUM*" -o -name "*scum*" \) 2>/dev/null || echo "Nenhuma pasta SCUM encontrada"
 
-SERVER_PID=$!
+echo ""
+echo "Procurando o arquivo SCUMServer.exe (pode demorar um pouco):"
+find /home/container -name "SCUMServer.exe" 2>/dev/null || echo "SCUMServer.exe NÃO FOI ENCONTRADO!"
 
-# Graceful Shutdown - essencial pro salvamento do banco
-shutdown() {
-  echo "Recebido sinal de shutdown do Pterodactyl - enviando SIGINT (Ctrl+C) pro SCUMServer.exe..."
-  kill -SIGINT $SERVER_PID 2>/dev/null || true
-  
-  echo "Aguardando salvamento do banco de dados (SQLite) - pode demorar até 60 segundos..."
-  sleep 60
-  
-  echo "Servidor encerrado com sucesso."
-  exit 0
-}
-
-trap shutdown SIGTERM SIGINT SIGQUIT
-
-wait $SERVER_PID
+echo ""
+echo "Fim do diagnóstico. Container vai parar agora."
+exit 0
