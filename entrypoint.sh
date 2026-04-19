@@ -14,18 +14,16 @@ cd /home/container
 echo "Forçando download completo com platform windows..."
 "$STEAMCMD" +force_install_dir /home/container +login anonymous +@sSteamCmdForcePlatformType windows +app_update 3792580 validate +quit
 
-echo ""
-echo "=== Verificando arquivos após update ==="
-echo "Conteúdo de SCUM/Binaries/Win64:"
-ls -la SCUM/Binaries/Win64/ 2>/dev/null || echo "Pasta não existe"
+echo "Iniciando SCUM Dedicated Server..."
 
-echo ""
-echo "Buscando SCUMServer.exe:"
-find /home/container -name "SCUMServer.exe" 2>/dev/null || echo "Ainda não encontrado!"
+# Configurações para Wine rodar melhor sem áudio/placa de som
+export WINEDLLOVERRIDES="winemenubuilder.exe=d"
+export WINEDEBUG="-all"
+export XDG_RUNTIME_DIR=/tmp/runtime-container
+mkdir -p /tmp/runtime-container
+chmod 700 /tmp/runtime-container
 
-echo "Iniciando SCUMServer.exe..."
-
-# Tentativa com caminho mais comum
+# Inicia o servidor
 wine SCUM/Binaries/Win64/SCUMServer.exe \
   -log \
   -Port=${SERVER_PORT:-7777} \
@@ -35,12 +33,18 @@ wine SCUM/Binaries/Win64/SCUMServer.exe \
 
 SERVER_PID=$!
 
+echo "SCUMServer.exe iniciado com PID ${SERVER_PID}"
+
+# Graceful Shutdown - isso é o que você mais queria
 shutdown() {
-  echo "Recebido sinal de shutdown - enviando SIGINT (Ctrl+C)..."
+  echo "=== RECEBIDO SINAL DE SHUTDOWN DO PTERODACTYL ==="
+  echo "Enviando SIGINT (Ctrl+C) para o SCUMServer.exe..."
   kill -SIGINT $SERVER_PID 2>/dev/null || true
-  echo "Aguardando salvamento do banco de dados (90 segundos)..."
+  
+  echo "Aguardando salvamento do banco de dados (SQLite) - isso pode demorar..."
   sleep 90
-  echo "Servidor encerrado com sucesso."
+  
+  echo "Servidor encerrado com sucesso. Salvamento concluído."
   exit 0
 }
 
