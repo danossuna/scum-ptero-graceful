@@ -9,19 +9,23 @@ if [ ! -f "$STEAMCMD" ]; then
     exit 1
 fi
 
-echo "Forçando download completo do SCUM Dedicated Server..."
 cd /home/container
 
-# Força verificação + download completo (mais agressivo)
-"$STEAMCMD" +force_install_dir /home/container +login anonymous +app_update 3792580 validate +quit
+echo "Forçando download completo com platform windows..."
+"$STEAMCMD" +force_install_dir /home/container +login anonymous +@sSteamCmdForcePlatformType windows +app_update 3792580 validate +quit
 
 echo ""
-echo "=== Verificando arquivos do servidor ==="
-ls -la SCUM/Binaries/Win64/
+echo "=== Verificando arquivos após update ==="
+echo "Conteúdo de SCUM/Binaries/Win64:"
+ls -la SCUM/Binaries/Win64/ 2>/dev/null || echo "Pasta não existe"
+
+echo ""
+echo "Buscando SCUMServer.exe:"
+find /home/container -name "SCUMServer.exe" 2>/dev/null || echo "Ainda não encontrado!"
 
 echo "Iniciando SCUMServer.exe..."
 
-# Caminho correto baseado no seu diagnóstico
+# Tentativa com caminho mais comum
 wine SCUM/Binaries/Win64/SCUMServer.exe \
   -log \
   -Port=${SERVER_PORT:-7777} \
@@ -31,14 +35,11 @@ wine SCUM/Binaries/Win64/SCUMServer.exe \
 
 SERVER_PID=$!
 
-# Graceful Shutdown (essencial para salvar o SCUM.db)
 shutdown() {
-  echo "Recebido sinal de shutdown do Pterodactyl - enviando SIGINT (Ctrl+C) pro SCUMServer.exe..."
+  echo "Recebido sinal de shutdown - enviando SIGINT (Ctrl+C)..."
   kill -SIGINT $SERVER_PID 2>/dev/null || true
-  
-  echo "Aguardando salvamento do banco de dados (SQLite) - pode demorar até 90 segundos..."
+  echo "Aguardando salvamento do banco de dados (90 segundos)..."
   sleep 90
-  
   echo "Servidor encerrado com sucesso."
   exit 0
 }
